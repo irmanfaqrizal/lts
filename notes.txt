@@ -65,3 +65,15 @@ class Colors {
     public static final String GR = "#"; // Correct + Incorrect
     public static final String GRB = "#"; // Correct + Incorrect + Neutral
 }
+
+
+In LTS we add :                                                                                                                                                                                                                                                                                                                                                                                     
+1. Faulty color (type of neighborhood)
+2. Set of all unique labels
+3. Common label from faulty states
+
+We have to go through all the faulty states until exit state. because we may find another neighborhood
+after finding one. -> to do this we observe the color of the state and the labels
+- if we found another state with same color and one same outgoing label then this should be in the same cluster.
+- else this state should be in another cluster
+
