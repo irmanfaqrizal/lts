@@ -259,102 +259,119 @@ public class newLTS {
     //     }
     // }
 
-    static void getStatesInCluster(Map <State, List<Transition>> lts, State state, State stateOne,
-    List <Integer> tmpListVisitedInCluster, List <State> tmpListVisitedStates,
-    List <State> tmpStates, List <String> allLabels, List <State> newClusterStates) {
-        List <Transition> transitions = lts.get(state);
-
-        if(state.getTypeN().equals("") || state.getTypeN().equals(stateOne.getTypeN())) {
+    static void traverseCluster(Map <State, List<Transition>> lts, State state, State stateOne,
+	    List <Integer> tmpListVisitedInCluster, List <State> tmpListVisitedStates,
+	    List <State> tmpStates, List <String> commonLabels, List <String> allLabels, List <State> newClusterStates) {
+    	
+    	// Check loop
+    	if(tmpListVisitedInCluster.contains(state.getId())) {
+    		return;
+    	}
+    	
+    	// Check common label
+    	if(!state.getTypeN().equals("") && state.getTypeN().equals(stateOne.getTypeN())) {
+    		List <String> tmpLabels = new ArrayList<String>();
+	    	for (Transition stateLabels : lts.get(state)) {
+				tmpLabels.add(stateLabels.getLabel());
+			}
+	    	commonLabels.retainAll(tmpLabels);
+	    	tmpLabels.removeAll(allLabels);
+	    	allLabels.addAll(tmpLabels);
+    	}
+    	
+    	// If this state is a normal state or (a state with the same type as the first Faulty State and has common label)
+        if(state.getTypeN().equals("") || (state.getTypeN().equals(stateOne.getTypeN()) && commonLabels.size()!=0)) {
             
-            if(!tmpListVisitedInCluster.contains(state.getId())) {
-                tmpListVisitedInCluster.add(state.getId());
-            }
+        	tmpListVisitedInCluster.add(state.getId());
 
+        	// If it's a Faulty State then we add it to the list of Faulty States
             if(!state.getTypeN().equals("") && !tmpListVisitedStates.contains(state)) {
                 tmpStates.add(state);
             } 
             
+            // Add to the list of visited states (for the whole LTS)
             if(!tmpListVisitedStates.contains(state)) {
                 tmpListVisitedStates.add(state);
             }
-            // if(!state.getTypeN().equals("") && !tmpListVisitedInCluster.contains(state.getId())) {
-            //     tmpStates.add(state);
-            //     tmpListVisitedInCluster.add(state.getId());
-            // } 
-
             
-            
-
+            // Traverse to the next state in the cluster
+            List <Transition> transitions = lts.get(state);
             if (transitions.size() != 0) {
+            	List <Integer> tmpListVisitedInClusterNext =  new ArrayList<Integer>();
+            	tmpListVisitedInClusterNext.addAll(tmpListVisitedInCluster);
                 for (Transition transition : transitions) {
-                    if(!allLabels.contains(transition.getLabel())){
-                        allLabels.add(transition.getLabel());
-                    }
-                    getStatesInCluster(lts, transition.getTarget(), stateOne, tmpListVisitedInCluster,
-                        tmpListVisitedStates, tmpStates, allLabels, newClusterStates);
+                	traverseCluster(lts, transition.getTarget(), stateOne, tmpListVisitedInClusterNext,
+	                        tmpListVisitedStates, tmpStates, commonLabels, allLabels, newClusterStates);
                 }
             }
         } else if (!state.getTypeN().equals(stateOne.getTypeN()) && !tmpListVisitedStates.contains(state) ) {
-            newClusterStates.add(state);
+            // If we find another cluster then we add to the list of clusters in a cluster
+        	newClusterStates.add(state);
         }
     }
-
-    static int countClustersWithStates(Map <State, List<Transition>> lts, State state, List <State> tmpListVisited, List <Cluster> tmpClusters) {
-        List <Transition> transitions = lts.get(state);
-        // if(!state.getTypeN().equals("") && !tmpListVisited.contains(state.getId())) {
+    
+    // Function to call when we traversing the LTS (not yet in a cluster)
+    static void traverseLTS(Map <State, List<Transition>> lts, State state, List <State> tmpListVisited, List <Cluster> tmpClusters) {
+        
+    	// Get the outgoing transitions of the state
+    	List <Transition> transitions = lts.get(state);
+    	
+    	// If the state is a Faulty State
         if(!state.getTypeN().equals("") && !tmpListVisited.contains(state)) {
+        	
+        	// List of the first states in some clusters
             List <State> newClusterStates = new ArrayList<State>();
             newClusterStates.add(state);
-            // int counthere = 0;
-            // System.out.println("found " + state.getId());
+            
+            // Until we don't have any cluster in a cluster
             while (!newClusterStates.isEmpty()) {
-                
                 State clusterState = newClusterStates.remove(0);
-
-                // System.out.println("c = " + counthere +" : "+clusterState.getId());
-                // counthere++;
-
-                List <Integer> tmpListVisitedInCluster =  new ArrayList<Integer>();
-                // List <State> tmpListVisitedStates = new ArrayList<State>();
-                String neighType = clusterState.getTypeN();
-                List <State> tmpStates = new ArrayList<State>();
-                List <String> allLabels = new ArrayList<String>();
                 
-                // call a function to traverse a cluster
-                // getStatesInCluster(lts, clusterState, clusterState, tmpListVisitedInCluster,
-                //     tmpListVisitedStates, tmpStates, allLabels, newClusterStates);
+                // Check if we have visited this state (i.e. the first state of a cluster)
                 if(!tmpListVisited.contains(clusterState)) {
-                    getStatesInCluster(lts, clusterState, clusterState, tmpListVisitedInCluster,
-                        tmpListVisited, tmpStates, allLabels, newClusterStates);
+                    List <Integer> tmpListVisitedInCluster =  new ArrayList<Integer>();
+                    String neighType = clusterState.getTypeN();
+                    List <State> tmpStates = new ArrayList<State>();
                     
-
+                    // Store the labels in the first state in common label
                     List <String> commonLabels = new ArrayList<String>();
-                    List <Transition> firstStateTrans = lts.get(clusterState);
-                    for (Transition trans : firstStateTrans) {
-                        commonLabels.add(trans.getLabel());
-                    }
-                    for (State stateSearchCommonLbl : tmpStates) {
-                        List <Transition> transSearchCommonLbl = lts.get(stateSearchCommonLbl);
-                        List <String> otherStateLabels = new ArrayList<String>();
-                        for (Transition trans : transSearchCommonLbl) {
-                            otherStateLabels.add(trans.getLabel());
-                        }
-                        commonLabels.retainAll(otherStateLabels);
-                    }
-
-                    // add list of states into the cluster, and add the cluster to list of cluster
-                    // Cluster tmpCluster = new Cluster(tmpListVisitedStates.size(), neighType, tmpStates, commonLabels, allLabels);
-                    Cluster tmpCluster = new Cluster(tmpListVisitedInCluster.size(), neighType, tmpStates, commonLabels, allLabels);
+                    List <String> allLabels = new ArrayList<String>();
+                    for (Transition stateLabels : lts.get(clusterState)) {
+                    	commonLabels.add(stateLabels.getLabel());
+        			}
+                    
+                    // Call the other recursive function
+                    traverseCluster(lts, clusterState, clusterState, tmpListVisitedInCluster,
+                        tmpListVisited, tmpStates, commonLabels, allLabels, newClusterStates);
+                 
+                    // Gather the labels from the Faulty States we have found in the cluster
+//                    List <String> clusterCommonLabels = new ArrayList<String>();
+//                    List <String> clusterAllLabels = new ArrayList<String>();
+//                    for (Transition trans : lts.get(clusterState)) {
+//                    	clusterCommonLabels.add(trans.getLabel());
+//                    	clusterAllLabels.add(trans.getLabel());
+//                    }
+//                    for (State stateSearchCommonLbl : tmpStates) {
+//                        List <String> otherStateLabels = new ArrayList<String>();
+//                        for (Transition trans : lts.get(stateSearchCommonLbl)) {
+//                            otherStateLabels.add(trans.getLabel());
+//                        }
+//                        List <String> clusterAllLabelsTmp = new ArrayList<String>(otherStateLabels);
+//                        clusterAllLabelsTmp.removeAll(clusterAllLabels);
+//                        clusterAllLabels.addAll(clusterAllLabelsTmp);
+//                        clusterCommonLabels.retainAll(otherStateLabels);
+//                    }
+                    
+                    // Add the cluster to the list of clusters
+                    Cluster tmpCluster = new Cluster(tmpStates.size(), neighType, tmpStates, commonLabels, allLabels);
                     tmpClusters.add(tmpCluster);
                 }
             }
-            // tmpListVisited.add(state.getId());
             tmpListVisited.add(state);
-            return 1;
         } else if(transitions.size() == 0) {
-            return 0;
-        } else {
-            //re order
+            return;
+        } else { // if the state is a normal state (of the blue ones)
+            // We have to re-order the transitions such that we always traverse the Faulty States first
             int transOrder = 0;
             int transOrderSwap = 0;
             for (Transition transition : transitions) {
@@ -367,12 +384,10 @@ public class newLTS {
                 transOrder++;
             }
 
-            // traverse
-            int tmp = 0;
+            // Traverse to the next state
             for (Transition transition : transitions) {
-                tmp += countClustersWithStates(lts, transition.getTarget(), tmpListVisited, tmpClusters);
+            	traverseLTS(lts, transition.getTarget(), tmpListVisited, tmpClusters);
             }
-            return tmp;
         }
     }
 
@@ -380,7 +395,7 @@ public class newLTS {
         System.out.println("Number of Clusters = " + tmpClusters.size()+"\n");
         for (Cluster cluster : tmpClusters) {
             System.out.println("> Cluster Id = " + cluster.getId());
-            System.out.println(">>> Number of States  = " + cluster.getNumberOfStates());
+            System.out.println(">>> Number of Faulty States  = " + cluster.getNumberOfStates());
             System.out.println(">>> Neighborhood type = " + cluster.getNeighType());
             System.out.println(">>> Neighborhoods =>");
             for (State state : cluster.getNeighborhoods()) {
@@ -399,7 +414,6 @@ public class newLTS {
     }
 
     public static void main(String[] args) {
-
         // Check input
         if (args.length < 1) {
             System.out.println("Usage : java newLTS <name>");
@@ -467,7 +481,7 @@ public class newLTS {
         // printLTS(ltsMap);
         List <State> tmpListVisited = new ArrayList<State>();
         List <Cluster> tmpClusters = new ArrayList<Cluster>();
-        countClustersWithStates(ltsMap, firstState, tmpListVisited, tmpClusters);
+        traverseLTS(ltsMap, firstState, tmpListVisited, tmpClusters);
         printClusters(tmpClusters);
     }
 }
